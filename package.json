@@ -1,0 +1,39 @@
+{
+  "name": "btc-trading-bot",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "BTC Futures trading bot con Gemini AI validation, Telegram alerts y Supabase logging",
+  "author": "Leo (@0x4Leo)",
+  "private": true,
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.js",
+    "build": "tsc",
+    "test": "vitest",
+    "migrate": "tsx src/storage/run-migrations.ts",
+    "dashboard": "cd src/dashboard && npm run dev"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.21.0",
+    "@napi-rs/canvas": "^0.1.62",
+    "@supabase/supabase-js": "^2.47.0",
+    "ccxt": "^4.4.0",
+    "dotenv": "^16.4.0",
+    "node-cron": "^3.0.3",
+    "node-telegram-bot-api": "^0.66.0",
+    "pino": "^9.5.0",
+    "pino-pretty": "^11.3.0",
+    "technicalindicators": "^3.1.0",
+    "ws": "^8.19.0",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/node-cron": "^3.0.11",
+    "@types/node-telegram-bot-api": "^0.64.0",
+    "@types/ws": "^8.18.1",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0",
+    "vitest": "^2.1.9"
+  }
+}
