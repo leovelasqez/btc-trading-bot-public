@@ -45,7 +45,7 @@ src/
 │   ├── position-data.ts        # Datos de posición abierta + costos (comisiones, funding)
 │   └── orders.ts               # Órdenes (market, limit, SL, TP), margin mode (CROSS), leverage
 ├── analysis/
-│   ├── indicators.ts           # RSI, EMA, MACD, Bollinger, ATR, OBV, VWAP, microestructura
+│   ├── indicators.ts           # RSI, EMA, MACD, Bollinger, ATR, OBV, VWAP, patrones velas, S/R, price action
 │   ├── chart-generator.ts      # Genera imágenes PNG de charts
 │   └── context-builder.ts      # Empaqueta datos + indicadores para Gemini
 ├── ai/
@@ -114,6 +114,31 @@ Calculados en 15m, 1h, 4h y 1d:
 - **VWAP**
 - **Volume SMA** (20)
 - **Microestructura**: delta de volumen, presión compradora/vendedora
+
+### Patrones de Velas (detección automática)
+
+20 patrones detectados por `technicalindicators` sobre las últimas 5 velas de cada timeframe:
+- **Reversal bullish**: bullish_engulfing, hammer, morning_star, morning_doji_star, piercing_line, three_white_soldiers, bullish_harami, tweezer_bottom
+- **Reversal bearish**: bearish_engulfing, hanging_man, evening_star, evening_doji_star, dark_cloud_cover, three_black_crows, bearish_harami, tweezer_top, shooting_star
+- **Indecisión**: doji, dragonfly_doji, gravestone_doji
+
+### Soporte/Resistencia (swing highs/lows)
+
+Calculados automáticamente desde las 200 velas de cada timeframe:
+- Detección de swing highs/lows con lookback de 5 velas a cada lado
+- Clustering de niveles cercanos (tolerancia 0.3%) para evitar duplicados
+- Conteo de "touches" (toques) = fuerza del nivel
+- Máximo 4 soportes + 4 resistencias por timeframe
+- Incluye distancia % desde el precio actual
+
+### Price Action Context
+
+Métricas calculadas por timeframe:
+- **Streak**: velas consecutivas en la misma dirección (positivo=alcista, negativo=bajista)
+- **Velocity**: cambio % promedio por vela (últimas 5)
+- **Biggest move**: mayor movimiento en una sola vela (últimas 20), con dirección y antigüedad
+- **Wick analysis**: promedio de mechas superior/inferior como % del rango (últimas 10)
+- **Range vs ATR**: rango de la última vela / ATR(14) — expansión (>1) o contracción (<1)
 
 ## Convenciones de Código
 

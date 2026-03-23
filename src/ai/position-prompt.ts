@@ -2,7 +2,7 @@
  * Prompt template para Gemini AI — Gestión de posición abierta
  * Prompt separado del de análisis de señales, enfocado en ajustar SL/TP o cerrar
  */
-import type { MarketContext, TimeframeIndicators, CandleSummary } from './prompt-template.js';
+import type { MarketContext, TimeframeIndicators, CandleSummary, SupportResistanceLevel } from './prompt-template.js';
 import type { PositionData, TradeCosts } from '../exchange/position-data.js';
 
 export function buildPositionManagementSystemPrompt(): string {
@@ -44,6 +44,11 @@ INDICADORES TÉCNICOS (7, en 4 timeframes):
 - Bollinger Bands(20,2) para volatilidad y expansión/contracción
 - OBV para acumulación/distribución histórica
 - VWAP como referencia de precio justo institucional
+
+ANÁLISIS DE VELAS Y ESTRUCTURA:
+- Patrones de velas detectados automáticamente (doji, engulfing, hammer, etc.)
+- Soporte/Resistencia calculados desde swing highs/lows (toques = fuerza del nivel)
+- Price Action: racha de velas, velocidad, mayor movimiento, mechas
 
 DATOS DE MICROESTRUCTURA:
 - Funding Rate + Open Interest → posicionamiento del mercado
@@ -198,6 +203,30 @@ ${formatTimeframe('1 DÍA', tf_1d, currentPrice)}
 4h:  ${describeCandlePattern(tf_4h.last_5_candles)}
 1d:  ${describeCandlePattern(tf_1d.last_5_candles)}
 
+━━━━━━━━━━━━━━━━━━━━━━
+  PATRONES DE VELAS DETECTADOS
+━━━━━━━━━━━━━━━━━━━━━━
+15m: ${formatPatterns(tf_15m)}
+1h:  ${formatPatterns(tf_1h)}
+4h:  ${formatPatterns(tf_4h)}
+1d:  ${formatPatterns(tf_1d)}
+
+━━━━━━━━━━━━━━━━━━━━━━
+  SOPORTE/RESISTENCIA (swing highs/lows)
+━━━━━━━━━━━━━━━━━━━━━━
+${formatSR('15m', tf_15m)}
+${formatSR('1h', tf_1h)}
+${formatSR('4h', tf_4h)}
+${formatSR('1d', tf_1d)}
+
+━━━━━━━━━━━━━━━━━━━━━━
+  PRICE ACTION
+━━━━━━━━━━━━━━━━━━━━━━
+${formatPriceAction('15m', tf_15m)}
+${formatPriceAction('1h', tf_1h)}
+${formatPriceAction('4h', tf_4h)}
+${formatPriceAction('1d', tf_1d)}
+
 Responde ÚNICAMENTE con el JSON especificado en tu system prompt.`;
 }
 
@@ -270,4 +299,31 @@ function describeCandlePattern(candles: CandleSummary[]): string {
     Math.abs(((c.close - c.open) / c.open) * 100).toFixed(2),
   );
   return `${directions.join('')} (cuerpos: ${bodies.map((b) => b + '%').join(', ')})`;
+}
+
+function formatPatterns(tf: TimeframeIndicators): string {
+  if (!tf.candle_patterns || tf.candle_patterns.detected.length === 0) return 'Ninguno detectado';
+  return tf.candle_patterns.detected.join(', ');
+}
+
+function formatSR(name: string, tf: TimeframeIndicators): string {
+  if (!tf.support_resistance || tf.support_resistance.length === 0) return `${name}: Sin niveles detectados`;
+  const supports = tf.support_resistance.filter((l) => l.type === 'support');
+  const resistances = tf.support_resistance.filter((l) => l.type === 'resistance');
+  const fmtLevel = (l: SupportResistanceLevel) => `$${l.price.toLocaleString()} (${l.touches}t, ${l.distance_pct >= 0 ? '+' : ''}${l.distance_pct}%)`;
+  const sLine = supports.length > 0 ? `S: ${supports.map(fmtLevel).join(' | ')}` : 'S: —';
+  const rLine = resistances.length > 0 ? `R: ${resistances.map(fmtLevel).join(' | ')}` : 'R: —';
+  return `${name} ${sLine} / ${rLine}`;
+}
+
+function formatPriceAction(name: string, tf: TimeframeIndicators): string {
+  if (!tf.price_action) return `${name}: Sin datos`;
+  const pa = tf.price_action;
+  const streakDir = pa.streak > 0 ? 'alcistas' : pa.streak < 0 ? 'bajistas' : '';
+  const streakStr = pa.streak !== 0 ? `Racha: ${Math.abs(pa.streak)} velas ${streakDir}` : 'Racha: 0';
+  const velStr = `Vel: ${pa.velocity >= 0 ? '+' : ''}${pa.velocity}%/vela`;
+  const bigStr = `Mayor mov: ${pa.biggest_move.direction === 'up' ? '+' : '-'}${pa.biggest_move.pct}% hace ${pa.biggest_move.candles_ago} velas`;
+  const wickStr = `Mechas sup: ${pa.avg_upper_wick_pct}% inf: ${pa.avg_lower_wick_pct}%`;
+  const rangeStr = `Rango/ATR: ${pa.range_vs_atr}`;
+  return `${name}: ${streakStr} | ${velStr} | ${bigStr} | ${wickStr} | ${rangeStr}`;
 }

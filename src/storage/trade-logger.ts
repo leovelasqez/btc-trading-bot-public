@@ -6,6 +6,20 @@ import { logger } from '../config/logger.js';
 import type { MarketContext } from '../ai/prompt-template.js';
 import type { AiResponse } from '../ai/response-parser.js';
 
+/** Parsea rawText de Gemini para guardar en Supabase (columna JSONB). Limpia markdown si es necesario. */
+function safeParseRaw(text: string): unknown {
+  try {
+    let cleaned = text.trim();
+    const blockMatch = cleaned.match(/```(?:json)?\s*([\s\S]*?)```/);
+    if (blockMatch) cleaned = blockMatch[1]!.trim();
+    const objMatch = cleaned.match(/\{[\s\S]*\}/);
+    if (objMatch) cleaned = objMatch[0];
+    return JSON.parse(cleaned);
+  } catch {
+    return { raw: text };
+  }
+}
+
 // ─── Signal logging ───
 
 export interface LogSignalInput {
@@ -81,7 +95,7 @@ export async function logAiDecision(input: LogAiDecisionInput): Promise<string> 
       suggested_take_profit: aiResponse.take_profit,
       model_used: input.modelUsed ?? 'gemini-3.1-pro-preview',
       latency_ms: latencyMs,
-      raw_response: JSON.parse(rawResponse),
+      raw_response: safeParseRaw(rawResponse),
       accepted,
       rejection_reason: rejectionReason ?? null,
     })
@@ -241,7 +255,7 @@ export async function logPositionAdjustment(input: LogPositionAdjustmentInput): 
       new_tp: input.newTP,
       ai_confidence: input.aiConfidence,
       ai_reasoning: input.aiReasoning,
-      ai_raw_response: JSON.parse(input.aiRawResponse),
+      ai_raw_response: safeParseRaw(input.aiRawResponse),
       btc_price: input.btcPrice,
       unrealized_pnl: input.unrealizedPnl,
       funding_fees_accumulated: input.fundingFeesAccumulated,

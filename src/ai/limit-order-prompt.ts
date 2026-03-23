@@ -2,7 +2,7 @@
  * Prompt template para Gemini AI — Gestión de orden límite pendiente
  * Prompt separado para decidir si mantener, cancelar o reemplazar una orden límite no ejecutada
  */
-import type { MarketContext, TimeframeIndicators, CandleSummary } from './prompt-template.js';
+import type { MarketContext, TimeframeIndicators, CandleSummary, SupportResistanceLevel } from './prompt-template.js';
 
 export interface PendingLimitOrder {
   side: 'LONG' | 'SHORT';
@@ -157,6 +157,14 @@ ${formatTimeframeSummary('1d', tf_1d, currentPrice)}
 4h:  ${describeCandlePattern(tf_4h.last_5_candles)}
 1d:  ${describeCandlePattern(tf_1d.last_5_candles)}
 
+━━━━━━━━━━━━━━━━━━━━━━
+  PATRONES / S&R / PRICE ACTION
+━━━━━━━━━━━━━━━━━━━━━━
+${formatCompactAnalysis('15m', tf_15m)}
+${formatCompactAnalysis('1h', tf_1h)}
+${formatCompactAnalysis('4h', tf_4h)}
+${formatCompactAnalysis('1d', tf_1d)}
+
 Responde ÚNICAMENTE con el JSON especificado en tu system prompt.`;
 }
 
@@ -185,4 +193,31 @@ function describeCandlePattern(candles: CandleSummary[]): string {
     Math.abs(((c.close - c.open) / c.open) * 100).toFixed(2),
   );
   return `${directions.join('')} (cuerpos: ${bodies.map((b) => b + '%').join(', ')})`;
+}
+
+function formatCompactAnalysis(name: string, tf: TimeframeIndicators): string {
+  const parts: string[] = [`[${name}]`];
+
+  // Patterns
+  if (tf.candle_patterns && tf.candle_patterns.detected.length > 0) {
+    parts.push(`Patrones: ${tf.candle_patterns.detected.join(', ')}`);
+  }
+
+  // S/R compact
+  if (tf.support_resistance && tf.support_resistance.length > 0) {
+    const supports = tf.support_resistance.filter((l) => l.type === 'support').slice(0, 2);
+    const resistances = tf.support_resistance.filter((l) => l.type === 'resistance').slice(0, 2);
+    const fmtLevel = (l: SupportResistanceLevel) => `$${l.price.toLocaleString()} (${l.touches}t)`;
+    if (supports.length) parts.push(`S: ${supports.map(fmtLevel).join(', ')}`);
+    if (resistances.length) parts.push(`R: ${resistances.map(fmtLevel).join(', ')}`);
+  }
+
+  // Price action compact
+  if (tf.price_action) {
+    const pa = tf.price_action;
+    const dir = pa.streak > 0 ? '+' : pa.streak < 0 ? '-' : '';
+    parts.push(`Racha: ${dir}${Math.abs(pa.streak)} | Vel: ${pa.velocity}%/v | R/ATR: ${pa.range_vs_atr}`);
+  }
+
+  return parts.length > 1 ? parts.join(' | ') : `[${name}] Sin datos adicionales`;
 }

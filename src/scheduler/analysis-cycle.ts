@@ -171,6 +171,8 @@ export function registerFillHandler(): void {
     } finally {
       // Clear pending order regardless of success/failure
       pendingLimitOrder = null;
+      // Position is now open — next scheduled cycle should use 15m interval
+      lastCycleHadOpenPosition = true;
     }
   });
 }
@@ -724,6 +726,7 @@ export async function runAnalysisCycle(): Promise<void> {
           logger.info({ orderId: tradeResult.orderId }, 'Limit order tracked para fill detection');
         } else {
           logger.info({ tradeId: tradeResult.tradeId }, 'Trade MARKET ejecutado');
+          lastCycleHadOpenPosition = true;
         }
       } else {
         logger.warn({ reason: tradeResult.reason }, 'Trade no ejecutado');
